@@ -2,9 +2,9 @@
 #
 # ifspace - run a command if there is enough space in a filesystem
 #
-# @(#) $Revision$
-# @(#) $Id$
-# @(#) $Source$
+# @(#) $Revision: 1.1 $
+# @(#) $Id: ifspace,v 1.1 2004/04/24 12:39:37 chongo Exp chongo $
+# @(#) $Source: /usr/local/src/cmd/ifspace/RCS/ifspace,v $
 #
 # Copyright (c) 2004 by Landon Curt Noll.  All Rights Reserved.
 #
@@ -32,7 +32,7 @@
 
 # parse args
 #
-if [[ $# -lt 4 ]]; then
+if [[ $# -lt 3 ]]; then
     echo "usage: $0 /file/sys kbytefree cmd [arg ...]" 1>&2
     exit 1
 fi
