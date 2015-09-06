@@ -3,9 +3,9 @@
 #
 # ifspace - run a command if there is enough space in a filesystem
 #
-# @(#) $Revision$
-# @(#) $Id$
-# @(#) $Source$
+# @(#) $Revision: 1.1 $
+# @(#) $Id: Makefile,v 1.1 2004/04/24 12:39:37 chongo Exp root $
+# @(#) $Source: /usr/local/src/bin/ifspace/RCS/Makefile,v $
 #
 # Copyright (c) 2004 by Landon Curt Noll.  All Rights Reserved.
 #
@@ -34,7 +34,7 @@
 
 SHELL= /bin/sh
 
-TOPNAME= cmd
+TOPNAME= bin
 INSTALL= install
 
 DESTDIR= /usr/local/bin
