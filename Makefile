@@ -3,8 +3,8 @@
 #
 # ifspace - run a command if there is enough space in a filesystem
 #
-# @(#) $Revision: 1.1 $
-# @(#) $Id: Makefile,v 1.1 2004/04/24 12:39:37 chongo Exp root $
+# @(#) $Revision: 1.2 $
+# @(#) $Id: Makefile,v 1.2 2015/09/06 06:58:46 root Exp $
 # @(#) $Source: /usr/local/src/bin/ifspace/RCS/Makefile,v $
 #
 # Copyright (c) 2004 by Landon Curt Noll.  All Rights Reserved.
