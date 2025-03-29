@@ -1,12 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #
 # ifspace - run a command if there is enough space in a filesystem
 #
-# @(#) $Revision: 1.3 $
-# @(#) $Id: ifspace,v 1.3 2011/04/04 14:06:28 chongo Exp $
-# @(#) $Source: /usr/local/src/bin/ifspace/RCS/ifspace,v $
-#
-# Copyright (c) 2004-2011 by Landon Curt Noll.  All Rights Reserved.
+# Copyright (c) 2004,2011,2015,2023,2025 by Landon Curt Noll.  All Rights Reserved.
 #
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby granted,
@@ -26,35 +22,187 @@
 # OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 #
-# chongo (Landon Curt Noll, http://www.isthe.com/chongo/index.html) /\oo/\
+# chongo (Landon Curt Noll) /\oo/\
 #
-# Share and enjoy! :-)
+# http://www.isthe.com/chongo/index.html
+# https://github.com/lcn2
+#
+# Share and enjoy!  :-)
 
-# parse args
+
+# setup
+#
+export VERSION="1.3.1 2025-03-28"
+NAME=$(basename "$0")
+export NAME
+#
+export V_FLAG=0
+#
+export NOOP=
+export DO_NOT_PROCESS=
+
+
+# usage
+#
+export USAGE="usage: $0 [-h] [-v level] [-V] [-n] [-N] /filesys kbytefree cmd [arg ...]
+
+    -h          print help message and exit
+    -v level    set verbosity level (def level: $V_FLAG)
+    -V          print version string and exit
+
+    -n          go thru the actions, but do not update any files (def: do the action)
+    -N          do not process anything, just parse arguments (def: process something)
+
+    /filesys    path of a file or direction on the storage device
+    kbytefree   device holding /filesys must have at least kbytefree kilobytes tree to run cmd
+    cmd         command to run if there is space
+    [arg ...]   optional args to cmd
+
+    NOTE: /filesys can be any path on the storage device: it does NOT need to be the mount point
+
+Exit codes:
+     0         all OK
+     1         not enough space on /filesys
+     2         -h and help string printed or -V and version string printed
+     3         command line error
+     4         /filesys path not found
+     5         unable to determine the mount of free space on /filesys
+     6         cmd exited non-zero
+ >= 10         internal error
+
+$NAME version: $VERSION"
+
+
+# parse command line
+#
+while getopts :hv:VnN flag; do
+  case "$flag" in
+    h) echo "$USAGE"
+        exit 2
+        ;;
+    v) V_FLAG="$OPTARG"
+        ;;
+    V) echo "$VERSION"
+        exit 2
+        ;;
+    n) NOOP="-n"
+        ;;
+    N) DO_NOT_PROCESS="-N"
+        ;;
+    \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    :) echo "$0: ERROR: option -$OPTARG requires an argument" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+    *) echo "$0: ERROR: unexpected value from getopts: $flag" 1>&2
+        echo 1>&2
+        echo "$USAGE" 1>&2
+        exit 3
+        ;;
+  esac
+done
+if [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: debug[1]: debug level: $V_FLAG" 1>&2
+fi
+#
+# remove the options
+#
+shift $(( OPTIND - 1 ));
+#
+# verify arg count
 #
 if [[ $# -lt 3 ]]; then
-    echo "usage: $0 /file/sys kbytefree cmd [arg ...]" 1>&2
-    exit 1
+    echo "$0: ERROR: expected at least 3 args, found: $#" 1>&2
+    echo "$USAGE" 1>&2
+    exit 3
 fi
-PROGRAM="$0"
-FILESYS="$1"
-NEEDKFREE="$2"
+export FILESYS="$1"
+export NEEDKFREE="$2"
+shift 2
+
+
+# firewall - FILESYS must exist
+#
 if [[ ! -e "$FILESYS" ]]; then
     echo "$0: does not exist: $FILESYS" 1>&2
-    exit 2
+    exit 4
 fi
+
+
+# print running info if verbose
+#
+# If -v 3 or higher, print exported variables in order that they were exported.
+#
+if [[ $V_FLAG -ge 3 ]]; then
+    echo "$0: debug[3]: VERSION=$VERSION" 1>&2
+    echo "$0: debug[3]: NAME=$NAME" 1>&2
+    echo "$0: debug[3]: V_FLAG=$V_FLAG" 1>&2
+    echo "$0: debug[3]: NOOP=$NOOP" 1>&2
+    echo "$0: debug[3]: DO_NOT_PROCESS=$DO_NOT_PROCESS" 1>&2
+    echo "$0: debug[3]: FILESYS=$FILESYS" 1>&2
+    echo "$0: debug[3]: NEEDKFREE=$NEEDKFREE" 1>&2
+fi
+
 
 # determine free space
 #
 KFREE=$(df -k -P "$FILESYS" | sed -n 2p | awk '{print $4;}')
+status_codes=("${PIPESTATUS[@]}")
+export KFREE
+if [[ ${status_codes[*]} =~ [1-9] ]]; then
+    echo "$0: ERROR: df -k -P $FILESYS | sed -n 2p | awk '{print $4;}' failed," \
+	 "error codes: ${status_codes[*]}" 1>&2
+    exit 5
+fi
+if [[ -z $KFREE ]]; then
+    echo "$0: ERROR: unable to determine free space on: $FILESYS" 1>&2
+    exit 5
+fi
+if [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: debug[1]: free space in kbytes for $FILESYS: $KFREE" 1>&2
+fi
+
+
+# -N stops early before any processing is performed
+#
+if [[ -n $DO_NOT_PROCESS ]]; then
+    if [[ $V_FLAG -ge 3 ]]; then
+        echo "$0: debug[3]: arguments parsed, -N given, exiting 0" 1>&2
+    fi
+    exit 0
+fi
+
 
 # execute command if there is enough space
 #
 if [[ "$KFREE" -ge "$NEEDKFREE" ]]; then
-    shift 2
-    $@
-    STATUS="$?"
-else
-    STATUS="0"
+    if [[ $V_FLAG -ge 1 ]]; then
+	echo "$0: debug[1]: command to rum: $*" 1>&2
+    fi
+    if [[ -z $NOOP ]]; then
+	"$@"
+	status="$?"
+    else
+	status="0"
+	if [[ $V_FLAG -ge 3 ]]; then
+	    echo "$0: debug[3]: because of -n, did not execute: $*" 1>&2
+	fi
+    fi
+    if [[ $status -ne 0 ]]; then
+	echo "$0: ERROR: $* failed, error: $status" 1>&2
+	exit 6
+    fi
+elif [[ $V_FLAG -ge 1 ]]; then
+    echo "$0: notice: on: $FILESYS need $NEEDKFREE but found only: $KFREE" 1>&2
+    exit 1
 fi
-exit "$STATUS"
+
+
+# All Done!!! -- Jessica Noll, Age 2
+#
+exit 0
