@@ -12,7 +12,7 @@ sudo make install
 
 # To use
 
-```sh
+```
 /usr/local/bin/ifspace [-h] [-v level] [-V] [-n] [-N] /filesys kbytefree cmd [arg ...]
 
     -h          print help message and exit
